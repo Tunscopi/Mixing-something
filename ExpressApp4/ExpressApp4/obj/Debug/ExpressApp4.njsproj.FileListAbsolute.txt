@@ -1,0 +1,2 @@
+C:\Users\Main\Downloads\Mixing-something\Mixing-something\ExpressApp4\ExpressApp4\obj\Debug\ExpressApp4.njsprojResolveAssemblyReference.cache
+C:\Users\Main\Downloads\Mixing-something\Mixing-something\ExpressApp4\ExpressApp4\bin\Microsoft.NodejsTools.WebRole.dll

@@ -1,0 +1,18 @@
+{
+  "name": "ExpressApp4",
+  "version": "0.0.0",
+  "description": "ExpressApp4",
+  "main": "app.js",
+  "author": {
+    "name": "allee_000",
+    "email": ""
+  },
+  "dependencies": {
+    "express": "3.4.4",
+    "jade": "*",
+    "socket.io": "^1.3.6",
+    "socket.io-client": "^1.3.6",
+    "stylus": "*",
+    "ubidots": "0.0.4"
+  }
+}
