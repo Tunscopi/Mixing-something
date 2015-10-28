@@ -1,0 +1,207 @@
+/*
+ Title: Sir Mix-a-lot code to utilize wi-fi connection in mixing drinks
+ Runs on Linkit One/generic Arduino boards
+ 
+ Dependencies:
+ Ubidots WiFi client
+ Build Date: 9/20/2015
+ 2015 Howard University Sir Mix-a-lot.  All rights reserved.
+ 
+ Closed-source software: This software is not freely re-distributable.
+ You need permission to be in possession of this software
+ 
+ Contact: 
+ Ayotunde Odejayi    ayotundeodejayi@yahoo.com
+ Jonathan Branscomb  jonathan.branscomb@gmail.com
+ Trey Morris         morris.trey.j@gmailcom
+*/
+ 
+// Setup pins and variables
+// Include libraries
+#include <Wire.h>
+#include "rgb_lcd.h"    
+#include <LTask.h>
+#include <LWiFi.h>
+#include <LWiFiClient.h>
+
+#define WIFI_AP "Cisco50527"   // Enter the wifi address name
+#define WIFI_PASSWORD "HowardMDA2012" // Enter the password
+#define WIFI_AUTH LWIFI_WPA        // Choose from LWIFI_OPEN, LWIFI_WPA, or LWIFI_WEP.
+
+// Create lcd object & set color values
+rgb_lcd lcd;           
+const int colorR = 255;   
+const int colorG = 255;
+const int colorB = 0;
+
+// Map Pins
+#define J1 2          // Map output pin, J1 to Relay1
+#define J2 3          // Map output pin, J2 to Relay2
+#define J3 4          // Map output pin, J3 to Relay3
+#define J4 8          // Map output pin, J4 to Buzzer
+
+// Pump variables
+int pour_amount_A, pour_amount_B, pour_amount_C;    // Pour amounts in mL
+float flow_rate = 0.6;    //Volume per sec. rate of pump (mL/sec)
+
+// Enter Ubidots generated info
+#define URL    "things.ubidots.com"
+#define TOKEN  "xViN59XEK21g4vXpsMjWpRcTc6vRm1"     // Enter Ubidots token generated in your profile tab
+#define VARID1 "55fdd16376254239c8738f16"           // Create a variable in Ubidots and put its ID here (http://app.ubidots.com/ubi/datasources/)
+
+// Other Wi-fi variables
+//String response;
+int value_index;
+String value_string;
+String value;
+String prev_response = "value_exists";
+String x1, x2, x3;
+
+void setup()
+{
+  // Initialize the digital pins as outputs.
+  pinMode(J1, OUTPUT);  
+  pinMode(J2, OUTPUT);  
+  pinMode(J3, OUTPUT); 
+  pinMode(J4, OUTPUT);
+  
+  // Set up the LCD's number of columns and rows and colors
+  lcd.begin(16, 2);
+  lcd.setRGB(colorR, colorG, colorB);
+
+  // Print a message to the LCD.
+  lcd.print("Sir Mix-a-lot!");
+  delay(3000);
+  lcd.clear();
+  
+  LTask.begin();
+  LWiFi.begin();
+  Serial.begin(9600);
+
+  // Keep retrying until connected to AP
+  Serial.println("Connecting to AP");
+  while (0 == LWiFi.connect(WIFI_AP, LWiFiLoginInfo(WIFI_AUTH, WIFI_PASSWORD)))
+  {
+    delay(1000);
+  }
+}
+
+// Reconnect to WiFi if the connection drops
+boolean wifi_status(LWifiStatus ws){
+  switch(ws)
+  {
+    case LWIFI_STATUS_DISABLED:
+      return false;
+    break;
+    case LWIFI_STATUS_DISCONNECTED:
+      return false;
+    break;
+    case LWIFI_STATUS_CONNECTED:
+      return true;
+    break;
+  }
+  return false;
+}
+
+
+void loop()
+{   
+  Serial.println("Connecting to Ubidots...");
+  LWiFiClient c;
+  while (!c.connect(URL, 80))
+  {
+    Serial.println("Retrying to connect...");
+    delay(100);
+  }
+  Serial.println("Connected!");
+  lcd.print("Connected!");
+  
+  while(1)
+  {
+    LWifiStatus ws = LWiFi.status();
+    boolean status = wifi_status(ws);
+    String response = "";
+    if(!status){
+      Serial.println("Connecting to AP");
+      while (0 == LWiFi.connect(WIFI_AP, LWiFiLoginInfo(WIFI_AUTH, WIFI_PASSWORD)))
+      {
+        delay(500);
+      }
+  }
+    
+  if(!c.connected())
+  {
+    while (!c.connect(URL, 80)){
+      delay(100);
+    }
+    Serial.println("Client reconnected!");
+  }   
+  
+  // Build HTTP GET request
+  c.print(F("GET /api/v1.6/variables/"VARID1"/values/?page_size=1&token="));
+  c.print(TOKEN);
+  c.println(F(" HTTP/1.1"));
+  c.println(F("Content-Type: application/json"));
+  c.print(F("Host: "));
+  c.println(URL);
+  c.println();
+  
+  int v;
+  while(c.available()){  
+    v = c.read();
+    if(v < 0){
+      Serial.println("No response.");
+      break;
+    }
+    response.concat((char)v);
+  }
+  
+  //  Means to control when pumping system responds to info entered into Ubidots website
+  //while(response != "" || response != prev_response)
+  //{
+  //  prev_response = response;
+    Serial.println("Printing response:");
+    value_index = response.indexOf("\"value\": ");
+    value_string = response.substring(value_index);
+    value = value_string.substring(9, value_string.indexOf(","));
+    Serial.println(value);
+    
+    // Extract values from string of information and update serial monitor
+      x1 = value.substring(0,2);
+      x2 = value.substring(2,4);
+      x3 = value.substring(4,6);
+      pour_amount_A = x1.toInt();
+      pour_amount_B = x2.toInt();        
+      pour_amount_C = x3.toInt();
+      Serial.println(x1.toInt());
+      delay(500);
+      Serial.println(x2.toInt());
+      delay(500);
+      Serial.println(x3.toInt());
+      delay(500);
+    
+  // Control the pumps sequentially
+  digitalWrite(J1, HIGH);
+  delay((1000*pour_amount_A)/flow_rate);   
+  digitalWrite(J1, LOW);
+
+  digitalWrite(J2, HIGH);
+  delay((1000*pour_amount_B)/flow_rate);    
+  digitalWrite(J2, LOW);
+
+  digitalWrite(J3, HIGH);
+  delay((1000*pour_amount_C)/flow_rate);   
+  digitalWrite(J3, LOW);
+
+  // Print and clear LED
+  lcd.setCursor(0, 0);    // Indicates starting row and column no.
+  lcd.print("Order Complete!");
+  delay(3000);
+  lcd.clear();
+  
+  digitalWrite(J4, HIGH);
+  delay(500);
+  digitalWrite(J4, LOW);
+    //}
+  }
+}
